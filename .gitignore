@@ -36,3 +36,6 @@ node_modules
 .env
 deploy.env
 event.json
+
+# vscode directory
+.vscode
