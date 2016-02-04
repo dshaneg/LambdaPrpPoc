@@ -1,0 +1,18 @@
+{
+  "name": "prppoc",
+  "version": "1.0.0",
+  "description": "An AWS POC using lambda",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "private": true,
+  "license": "ISC",
+  "dependencies": {
+    "async": "^1.5.2",
+    "aws-sdk": "^2.2.33",
+    "dotenv": "^2.0.0",
+    "dynamodb-doc": "^1.0.0"
+  }
+}
