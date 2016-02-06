@@ -14,11 +14,12 @@ module.exports = function(docClient){
         var params = {
             TableName: 'SerialNumberProvenance',
             Item: serializedProduct,
-            ConditionExpression: "productId <> :productId and serialNumber <> :serialNumber",
-            ExpressionAttributeValues:{
-                ":productId": serializedProduct.productId,
-                ":serialNumber": serializedProduct.serialNumber
-            }            
+            ConditionExpression: "attribute_not_exists(productId) and attribute_not_exists(serialNumber)"
+            //ConditionExpression: "productId <> :productId and serialNumber <> :serialNumber",
+            //ExpressionAttributeValues:{
+            //    ":productId": serializedProduct.productId,
+            //   ":serialNumber": serializedProduct.serialNumber
+            //}            
         };
         
         docClient.put(params, function(err, data) {
