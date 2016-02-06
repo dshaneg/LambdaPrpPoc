@@ -14,6 +14,7 @@ exports.handler = function(event, context) {
     var s3Info = JSON.parse(event.Records[0].Sns.Message).Records[0].s3;
 
     var params = { Bucket: s3Info.bucket.name, Key: s3Info.object.key };
+    
     s3.getObject(params, function(err, data) {
         if (err){
             console.log(err);
