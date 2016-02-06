@@ -39,3 +39,6 @@ event.json
 
 # vscode directory
 .vscode
+
+# zipped package for upload to aws
+lambda.zip

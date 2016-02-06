@@ -5,7 +5,7 @@ AWS.config.update({region: 'us-east-1'});
 
 var s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
-var docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "http://localhost:8000" });
+var docClient = new AWS.DynamoDB.DocumentClient(/*{ endpoint: "http://localhost:8000" }*/);
 var dynamo = require('./dynamo')(docClient);
 
 exports.handler = function(event, context) {
