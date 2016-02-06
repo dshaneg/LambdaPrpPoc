@@ -1,14 +1,12 @@
 console.log('Loading function');
 
-//require('dotenv').config();
-
 var AWS = require('aws-sdk');
-var doc = require('dynamodb-doc');
-
-//AWS.config.update({region: 'us-east-1'});
+AWS.config.update({region: 'us-east-1'});
 
 var s3 = new AWS.S3({ apiVersion: '2006-03-01' });
-var dynamo = new doc.DynamoDB();
+
+var docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "http://localhost:8000" });
+var dynamo = require('./dynamo')(docClient);
 
 exports.handler = function(event, context) {
     console.log('Received event:', JSON.stringify(event, null, 2));
@@ -25,7 +23,6 @@ exports.handler = function(event, context) {
     });
 };
 
-
 function processEvent(orderCompleteEvent, source) {
     var serialized = [];
     var warranties = [];
@@ -37,8 +34,8 @@ function processEvent(orderCompleteEvent, source) {
         if (item.serial){
             serialized.push(
                 { 
-                    sku: item.sku, 
-                    serial: item.serial, 
+                    productId: item.sku, 
+                    serialNumber: item.serial, 
                     provenance: [ { 
                         source: source,
                         orderId: orderCompleteEvent.orderId, 
@@ -54,7 +51,7 @@ function processEvent(orderCompleteEvent, source) {
     
     matchWarranties(serialized, warranties);
     
-    dispatchSerialized(serialized);
+    dynamo.persistAll(serialized);
 }
 
 function matchWarranties(serialized, warranties) {
@@ -69,50 +66,3 @@ function matchWarranties(serialized, warranties) {
     return serialized;
 }
 
-function dispatchSerialized(serialized) {
-    for(var i = 0; i<serialized.length; i++){
-        console.log("Need to write: ", JSON.stringify(serialized[i], null, 2));
-    }
-}
-
-/*
- * Provide an event that contains the following keys:
- *
- *   - operation: one of the operations in the switch statement below
- *   - tableName: required for operations that interact with DynamoDB
- *   - payload: a parameter to pass to the operation being performed
- *//*
-{
-    var operation = event.operation;
-
-    if (event.tableName) {
-        event.payload.TableName = event.tableName;
-    }
-
-    switch (operation) {
-        case 'create':
-            dynamo.putItem(event.payload, context.done);
-            break;
-        case 'read':
-            dynamo.getItem(event.payload, context.done);
-            break;
-        case 'update':
-            dynamo.updateItem(event.payload, context.done);
-            break;
-        case 'delete':
-            dynamo.deleteItem(event.payload, context.done);
-            break;
-        case 'list':
-            dynamo.scan(event.payload, context.done);
-            break;
-        case 'echo':
-            context.succeed(event.payload);
-            break;
-        case 'ping':
-            context.succeed('pong');
-            break;
-        default:
-            context.fail(new Error('Unrecognized operation "' + operation + '"'));
-    }}
-}
-*/
