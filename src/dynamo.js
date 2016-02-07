@@ -1,41 +1,51 @@
+var Promise = require('promise');
+
 module.exports = function(docClient){
-    
+
+    var dynamoPutAsync = function(params) {
+        return new Promise(function(fulfill, reject) {
+            docClient.put(params, function(err, data) {
+                if (err) reject(err);
+                else fulfill(data);
+            });
+        });
+    };
+
+    var dynamoGetAsync = function(params) {
+        return new Promise(function(fulfill, reject) {
+            docClient.get(params, function(err, data) {
+                if (err) reject(err);
+                else fulfill(data);
+            });
+        });
+    };
+
     return {
-        persistAll: function (serializedProducts) {
-            for(var i = 0; i<serializedProducts.length; i++) {
-                persist(serializedProducts[i]);
-            }
+        persist: function(serializedProduct) {
+            console.log("Need to write: ", JSON.stringify(serializedProduct, null, 2));
+
+            // attempt a write first, assuming the more likely case that this product doesn't yet exist in our data store.
+            // if it exists, we'll fall into the routine that pulls the record, updates it, then puts it back.
+
+            var params = {
+                TableName: 'SerialNumberProvenance',
+                Item: serializedProduct,
+                ConditionExpression: "attribute_not_exists(productId) and attribute_not_exists(serialNumber)"
+            };
+            
+            return dynamoPutAsync(params)
+                .then(function(data) {
+                    Promise.resolve("\nwrote new record.");
+                }, function(err) {
+                    if (err.code === 'ConditionalCheckFailedException'){
+                        console.log("found existing record.")
+                        return persistExisting(serializedProduct);
+                    }
+                    return Promise.reject(err);
+                });
         }
     }
 
-    function persist(serializedProduct) {
-        console.log("Need to write: ", JSON.stringify(serializedProduct, null, 2));
-
-        var params = {
-            TableName: 'SerialNumberProvenance',
-            Item: serializedProduct,
-            ConditionExpression: "attribute_not_exists(productId) and attribute_not_exists(serialNumber)"
-            //ConditionExpression: "productId <> :productId and serialNumber <> :serialNumber",
-            //ExpressionAttributeValues:{
-            //    ":productId": serializedProduct.productId,
-            //   ":serialNumber": serializedProduct.serialNumber
-            //}            
-        };
-        
-        docClient.put(params, function(err, data) {
-            if (err) {
-                if (err.code === 'ConditionalCheckFailedException'){
-                    console.log("found existing record.")
-                    persistExisting(serializedProduct);
-                }
-                console.log(err);
-            }
-            else {
-                console.log("wrote new record");
-            }
-        });
-    }
-    
     function persistExisting(serializedProduct){
         var params = {
             TableName: 'SerialNumberProvenance',
@@ -46,24 +56,19 @@ module.exports = function(docClient){
             
         };
         
-        docClient.get(params, function (err, data) {
-            if (err) {
-                console.log(err);
-            } else {
-                dispatchSerializedRead(data.Item, serializedProduct);
-            }
-            
-        });
+        return dynamoGetAsync(params)
+            .then(function(data) {
+                return dispatchReadResult(data.Item, serializedProduct);
+            });
     }
     
-    function dispatchSerializedRead(data, serializedProduct) {
+    function dispatchReadResult(data, serializedProduct) {
         console.log("read: ", JSON.stringify(data, null, 2));
         
-        // need to do etags or something to identify write conflicts
+        // todo: need to do etags or something to identify write conflicts
 
         if (provenanceEntryExists(data, serializedProduct.provenance[0])) {
-            console.log("Duplicate update attempt. Bailing.")
-            return;
+            return Promise.resolve("\nDuplicate record. No action taken.");
         }
         
         // is it worth ordering these? It should be very rare that they could get out of order, 
@@ -75,14 +80,8 @@ module.exports = function(docClient){
             Item: data
         };
         
-        docClient.put(params, function(err, data) {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                console.log(data);
-            }
-        });
+        return dynamoPutAsync(params)
+            .then(function() {return Promise.resolve("\nUpdated.");});
     }
     
     function provenanceEntryExists(data, provenanceEntry){

@@ -10,6 +10,7 @@
   "private": true,
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.2.33"
+    "aws-sdk": "^2.2.33",
+    "promise": "^7.1.1"
   }
 }
