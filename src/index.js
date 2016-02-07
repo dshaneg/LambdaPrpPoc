@@ -34,7 +34,10 @@ exports.handler = function(event, context) {
         .then(function(data){
             return processEvent(JSON.parse(data.Body), params); // may need to deal with the json.parse for exceptions. will promise swallow?
         })
-        .then(context.succeed)
+        .then(function(val) {
+            console.log(val);
+            context.succeed(val);
+        })
         .catch(context.fail);
 };
 
