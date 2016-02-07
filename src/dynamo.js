@@ -34,11 +34,10 @@ module.exports = function(docClient){
             };
             
             return dynamoPutAsync(params)
-                .then(function(data) {
-                    Promise.resolve("\nwrote new record.");
+                .then(function() {
+                    return resolve(serializedProduct, "Wrote new record.");
                 }, function(err) {
                     if (err.code === 'ConditionalCheckFailedException'){
-                        console.log("found existing record.")
                         return persistExisting(serializedProduct);
                     }
                     return Promise.reject(err);
@@ -68,7 +67,7 @@ module.exports = function(docClient){
         // todo: need to do etags or something to identify write conflicts
 
         if (provenanceEntryExists(data, serializedProduct.provenance[0])) {
-            return Promise.resolve("\nDuplicate record. No action taken.");
+            return resolve(serializedProduct, "Duplicate record. No action taken.");
         }
         
         // is it worth ordering these? It should be very rare that they could get out of order, 
@@ -81,7 +80,9 @@ module.exports = function(docClient){
         };
         
         return dynamoPutAsync(params)
-            .then(function() {return Promise.resolve("\nUpdated.");});
+            .then(function() {
+                return resolve(serializedProduct, "Updated.");
+            });
     }
     
     function provenanceEntryExists(data, provenanceEntry){
@@ -95,5 +96,12 @@ module.exports = function(docClient){
         }
         
         return false;
+    }
+    
+    function resolve(serializedProduct, message) {
+        return Promise.resolve({ 
+            productId: serializedProduct.productId, 
+            serialNumber: serializedProduct.serialNumber, 
+            result: message });
     }
 }
