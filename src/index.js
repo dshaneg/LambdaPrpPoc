@@ -3,11 +3,13 @@ console.log('Loading function');
 var AWS = require('aws-sdk');
 AWS.config.update({region: 'us-east-1'});
 
+var moment = require('moment');
+
 // https://aws.amazon.com/blogs/compute/getting-nodejs-and-lambda-to-play-nicely/
 // without calling done, succeed for fail, sns will follow its retry policy 
 // because it assumes the function failed if it doesn't get a response.
 // Using promises to synchronize the possibly many asynchronous calls so we can call succeed/fail when done.
-var Promise = require('promise');
+//var Promise = require('promise');
 
 var s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
@@ -16,13 +18,13 @@ var s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 var s3GetAsync = function(params) {
     return new Promise(function(fulfill, reject) {
         s3.getObject(params, function(err, data) {
-            if (err) reject(err);
-            else fulfill(data);
+            if (err) { reject(err); }
+            else { fulfill(data); }
         });
     });
 };
 
-var docClient = new AWS.DynamoDB.DocumentClient(/*{ endpoint: "http://localhost:8000" }*/);
+var docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "http://localhost:8000" });
 var dynamo = require('./dynamo')(docClient);
 
 exports.handler = function(event, context) {
@@ -49,49 +51,81 @@ function getS3Params(event) {
 }
 
 function processEvent(orderCompleteEvent, source) {
-    var filteredItems = filterItems(orderCompleteEvent, source);
+    var serializedItems = filterItems(orderCompleteEvent, source);
 
-    matchWarranties(filteredItems.serialized, filteredItems.warranties);
-
-    return Promise.all(filteredItems.serialized.map(dynamo.persist));
+    return Promise.all(serializedItems.map(dynamo.persist));
 }
 
 function filterItems(orderCompleteEvent, source){
     var serialized = [];
-    var warranties = [];
-    
-    var items = orderCompleteEvent.items;
+    var items = orderCompleteEvent.lineItems;
     var item;
-    for (var i = 0; i < items.length; i++){
+    var i;
+    
+    for (i = 0; i < items.length; i++){
         item = items[i];
-        if (item.serial){
-            serialized.push(
-                { 
-                    productId: item.sku, 
-                    serialNumber: item.serial, 
-                    provenance: [ { 
-                        source: source,
-                        orderId: orderCompleteEvent.orderId, 
-                        itemId: item.itemId, 
-                        orderDateUtc: orderCompleteEvent.orderDateUtc, 
-                        action: item.action 
-                    } ] 
-                });
-        } else if (item.warranty){
-            warranties.push(item.warranty);
+        if (item.serialNumber){
+            serialized.push(buildProvenanceEntry(item, orderCompleteEvent, source));
         }
     }
     
-    return { serialized: serialized, warranties: warranties }
+    return serialized;
 }
 
-function matchWarranties(serialized, warranties) {
-    for (var i = 0; i<serialized.length; i++) {
-        for(var j = 0; j<warranties.length; j++){
-            if (serialized[i].provenance[0].itemId === warranties[j].coversItemId) {
-                serialized[i].provenance[0].warranty = { program: warranties[j].program, expireDate: warranties[j].expireDate };
-            } 
+function buildProvenanceEntry(item, orderCompleteEvent, source) {
+     // need a real product id--sku can be different for the same product
+     var prov = { 
+        productId: item.product.sku.skuNumber,
+        serialNumber: item.serialNumber, 
+        provenance: [ { 
+            source: source,
+            orderId: orderCompleteEvent.number, 
+            sequence: item.sequenceNumber,
+            lineId: item.identifier, 
+            orderDate: orderCompleteEvent.completedDate, 
+            action: item.lineItemType 
+        } ] 
+    }
+    
+    var warranty = findWarranty(item, orderCompleteEvent.completedDate);
+    
+    if (warranty) {
+        prov.warranty = warranty;
+    }
+    
+    return prov;
+}
+
+function findWarranty( item, orderCompletedDate ) {
+    var i;
+    var warranty;
+    var childItem;
+    
+    if ( item.children ) {
+        for ( i = 0; i < item.children.length; i +=1 ) {
+            childItem = item.children[i];
+            
+            if ( childItem.lineItem.product.isPrp ) {
+                warranty = {
+                    program: "PRP",
+                    expireDate: getExpireDate(childItem.lineItem.product, orderCompletedDate)    
+                };
+                break;
+            }
         }
     }
+    
+    return warranty;
 }
+
+function getExpireDate(warrantyProduct, orderCompletedDate) {
+    // need metadata in the product or a service that can provide the length of time for a warranty.
+    if (warrantyProduct.name.includes("1 Year")) {
+        return moment(orderCompletedDate).add(1, 'years'); 
+    }
+    else {
+        return moment(orderCompletedDate).add(2, 'years');
+    }
+}
+
 
