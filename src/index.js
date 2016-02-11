@@ -117,7 +117,7 @@ function findWarranty( item, orderCompletedDate ) {
 
 function getExpireDate(warrantyProduct, orderCompletedDate) {
     // need metadata in the product or a service that can provide the length of time for a warranty.
-    if (warrantyProduct.name.includes("1 Year")) {
+    if (warrantyProduct.name.indexOf("1 Year") !== -1) {
         return moment(orderCompletedDate).add(1, 'years'); 
     }
     else {
