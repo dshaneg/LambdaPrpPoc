@@ -1,12 +1,12 @@
-//var Promise = require('promise');
+var Promise = require('promise');
 
 module.exports = function(docClient){
 
     var dynamoPutAsync = function(params) {
         return new Promise(function(fulfill, reject) {
             docClient.put(params, function(err, data) {
-                if (err) reject(err);
-                else fulfill(data);
+                if (err) { reject(err); }
+                else { fulfill(data); }
             });
         });
     };
@@ -14,8 +14,8 @@ module.exports = function(docClient){
     var dynamoGetAsync = function(params) {
         return new Promise(function(fulfill, reject) {
             docClient.get(params, function(err, data) {
-                if (err) reject(err);
-                else fulfill(data);
+                if (err) { reject(err); }
+                else { fulfill(data); }
             });
         });
     };
@@ -87,10 +87,10 @@ module.exports = function(docClient){
     
     function provenanceEntryExists(data, provenanceEntry){
         var current;
-        for(var i=0; i<data.provenance.length; i++){
+        for(var i=0; i<data.provenance.length; i++) {
             current = data.provenance[i];
             
-            if (current.orderId === provenanceEntry.orderId && current.itemId === provenanceEntry.itemId){
+            if (current.orderId === provenanceEntry.orderId && current.itemId === provenanceEntry.itemId) {
                 return true;
             }
         }

@@ -9,7 +9,7 @@ var moment = require('moment');
 // without calling done, succeed for fail, sns will follow its retry policy 
 // because it assumes the function failed if it doesn't get a response.
 // Using promises to synchronize the possibly many asynchronous calls so we can call succeed/fail when done.
-//var Promise = require('promise');
+var Promise = require('promise');
 
 var s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
@@ -34,7 +34,8 @@ exports.handler = function(event, context) {
     
     s3GetAsync(params)
         .then(function(data){
-            return processEvent(JSON.parse(data.Body), params); // may need to deal with the json.parse for exceptions. will promise swallow?
+            // may need to deal with the json.parse for exceptions. will promise swallow?
+            return processEvent(JSON.parse(data.Body), params);
         })
         .then(function(val) {
             console.log(val);
@@ -98,24 +99,20 @@ function buildProvenanceEntry(item, orderCompleteEvent, source) {
 
 function findWarranty( item, orderCompletedDate ) {
     var i;
-    var warranty;
-    var childItem;
+    var childProduct;
     
-    if ( item.children ) {
-        for ( i = 0; i < item.children.length; i +=1 ) {
-            childItem = item.children[i];
-            
-            if ( childItem.lineItem.product.isPrp ) {
-                warranty = {
-                    program: "PRP",
-                    expireDate: getExpireDate(childItem.lineItem.product, orderCompletedDate)    
-                };
-                break;
-            }
+    if ( !item.children ) { return; }
+        
+    for ( i = 0; i < item.children.length; i +=1 ) {
+        childProduct = item.children[i].lineItem.product;
+        
+        if ( childProduct.isPrp ) {
+            return {
+                program: "PRP",
+                expireDate: getExpireDate(childProduct, orderCompletedDate)    
+            };
         }
     }
-    
-    return warranty;
 }
 
 function getExpireDate(warrantyProduct, orderCompletedDate) {
