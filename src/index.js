@@ -4,6 +4,7 @@ var AWS = require('aws-sdk');
 AWS.config.update({region: 'us-east-1'});
 
 var moment = require('moment');
+moment().format();
 
 // https://aws.amazon.com/blogs/compute/getting-nodejs-and-lambda-to-play-nicely/
 // without calling done, succeed for fail, sns will follow its retry policy 
@@ -24,7 +25,7 @@ var s3GetAsync = function(params) {
     });
 };
 
-var docClient = new AWS.DynamoDB.DocumentClient( /*{ endpoint: "http://localhost:8000" }*/);
+var docClient = new AWS.DynamoDB.DocumentClient( { endpoint: "http://localhost:8000" } );
 var dynamo = require('./dynamo')(docClient);
 
 exports.handler = function(event, context) {
@@ -75,7 +76,7 @@ function filterItems(orderCompleteEvent, source){
 
 function buildProvenanceEntry(item, orderCompleteEvent, source) {
      // need a real product id--sku can be different for the same product
-     var prov = { 
+     var entry = { 
         productId: item.product.sku.skuNumber,
         serialNumber: item.serialNumber, 
         provenance: [ { 
@@ -91,10 +92,10 @@ function buildProvenanceEntry(item, orderCompleteEvent, source) {
     var warranty = findWarranty(item, orderCompleteEvent.completedDate);
     
     if (warranty) {
-        prov.warranty = warranty;
+        entry.provenance[0].warranty = warranty;
     }
     
-    return prov;
+    return entry;
 }
 
 function findWarranty( item, orderCompletedDate ) {
@@ -108,8 +109,8 @@ function findWarranty( item, orderCompletedDate ) {
         
         if ( childProduct.isPrp ) {
             return {
-                program: "PRP",
-                expireDate: getExpireDate(childProduct, orderCompletedDate)    
+                expireDate: getExpireDate(childProduct, orderCompletedDate),
+                program: "PRP"
             };
         }
     }
@@ -118,10 +119,10 @@ function findWarranty( item, orderCompletedDate ) {
 function getExpireDate(warrantyProduct, orderCompletedDate) {
     // need metadata in the product or a service that can provide the length of time for a warranty.
     if (warrantyProduct.name.indexOf("1 Year") !== -1) {
-        return moment(orderCompletedDate).add(1, 'years'); 
+        return moment(orderCompletedDate).add(1, 'years').toISOString(); 
     }
     else {
-        return moment(orderCompletedDate).add(2, 'years');
+        return moment(orderCompletedDate).add(2, 'years').toISOString();
     }
 }
 

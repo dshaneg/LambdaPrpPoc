@@ -24,6 +24,9 @@ module.exports = function(docClient){
         persist: function(serializedProduct) {
             console.log("Need to write: ", JSON.stringify(serializedProduct, null, 2));
 
+            console.log(serializedProduct.provenance[0].warranty.program);
+            console.log(serializedProduct.provenance[0].warranty.expireDate);
+            console.log(typeof serializedProduct.provenance[0].warranty.expireDate);
             // attempt a write first, assuming the more likely case that this product doesn't yet exist in our data store.
             // if it exists, we'll fall into the routine that pulls the record, updates it, then puts it back.
 
