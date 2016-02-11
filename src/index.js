@@ -25,7 +25,7 @@ var s3GetAsync = function(params) {
     });
 };
 
-var docClient = new AWS.DynamoDB.DocumentClient( { endpoint: "http://localhost:8000" } );
+var docClient = new AWS.DynamoDB.DocumentClient( /* { endpoint: "http://localhost:8000" } */ );
 var dynamo = require('./dynamo')(docClient);
 
 exports.handler = function(event, context) {
